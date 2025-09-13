@@ -4,6 +4,10 @@
     <ProjectReference Include="..\haggling\haggling_interfaces\haggling_interfaces.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.51.1" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
