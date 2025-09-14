@@ -39,46 +39,50 @@ namespace haggling_ui.Views
             const int maxRows = 20;
 
             // Live-Ausgabe: bei jedem neuen Event die Tabelle aktualisieren
-            while (await _offerChannel.Reader.WaitToReadAsync())
-            {
-                while (_offerChannel.Reader.TryRead(out var offer))
+            await AnsiConsole.Live(table)
+                .StartAsync(async ctx =>
                 {
-                    var produktName = offer.Product?.Name ?? "(kein Produkt)";
-                    var preis = offer.Price;
-                    var status = offer.Status;
-                    var von = offer.OfferedBy.ToString();
-
-                    var (emotion, reason) = DetectEmotion(offer);
-                    var emoji = GetEmojiFor(emotion);
-
-                    var basePrice = GetBasePrice(offer.Product);
-                    var diff = preis - basePrice;
-
-                    // 🎨 Farbige Zellen erstellen
-                    var angebotCell = CreateColoredOfferCell(produktName, preis, basePrice, diff);
-                    var vonCell = CreateColoredPersonCell(von);
-                    var statusCell = CreateColoredStatusCell(status.ToString());
-                    var emotionCell = CreateColoredEmotionCell(emoji, emotion.ToString(), reason);
-
-                    table.AddRow(angebotCell, vonCell, statusCell, emotionCell);
-
-                    // Begrenze Anzahl der Zeilen
-                    if (table.Rows.Count > maxRows)
+                    while (await _offerChannel.Reader.WaitToReadAsync())
                     {
-                        table.Rows.RemoveAt(0);
+                        while (_offerChannel.Reader.TryRead(out var offer))
+                        {
+                            var produktName = offer.Product?.Name ?? "(kein Produkt)";
+                            var preis = offer.Price;
+                            var status = offer.Status;
+                            var von = offer.OfferedBy.ToString();
+
+                            var (emotion, reason) = DetectEmotion(offer);
+                            var emoji = GetEmojiFor(emotion);
+
+                            var basePrice = GetBasePrice(offer.Product);
+                            var diff = preis - basePrice;
+
+                            // 🎨 Farbige Zellen erstellen
+                            var angebotCell = CreateColoredOfferCell(produktName, preis, basePrice, diff);
+                            var vonCell = CreateColoredPersonCell(von);
+                            var statusCell = CreateColoredStatusCell(status.ToString());
+                            var emotionCell = CreateColoredEmotionCell(emoji, emotion.ToString(), reason);
+
+                            table.AddRow(angebotCell, vonCell, statusCell, emotionCell);
+
+                            // Begrenze Anzahl der Zeilen
+                            if (table.Rows.Count > maxRows)
+                            {
+                                table.Rows.RemoveAt(0);
+                            }
+
+                            // Live-Update ohne Console.Clear()
+                            ctx.UpdateTarget(table);
+                            await Task.Delay(500); // Kurze Pause zwischen Updates
+
+                            // _dealSuccessful setzen wie zuvor
+                            if (offer.Status == OfferStatus.Accepted)
+                                _dealSuccessful = true;
+                            else if (offer.Status == OfferStatus.Stopped)
+                                _dealSuccessful = false;
+                        }
                     }
-
-                    // Neu zeichnen
-                    Console.Clear();
-                    AnsiConsole.Write(table);
-
-                    // _dealSuccessful setzen wie zuvor
-                    if (offer.Status == OfferStatus.Accepted)
-                        _dealSuccessful = true;
-                    else if (offer.Status == OfferStatus.Stopped)
-                        _dealSuccessful = false;
-                }
-            }
+                });
 
             // Nach Ende: Ergebnis anzeigen
             Console.WriteLine();

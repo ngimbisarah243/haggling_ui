@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\haggling_interfaces\haggling_interfaces.csproj" />
         <ProjectReference Include="..\haggling\haggling_interfaces\haggling_interfaces.csproj" />
     </ItemGroup>
 
