@@ -24,16 +24,16 @@ namespace haggling_ui.Views
         {
             AnsiConsole.MarkupLine("[bold yellow]Starte Haggling-Event-UI...[/]");
 
-            // Tabelle anlegen (Spalten: Angebot, Von, Status, Emotion)
+            // Tabelle anlegen (Spalten: Angebot, Von, Status, Emotion) mit rosa Header-Hintergrund
             var table = new Table()
-                .AddColumn("[bold magenta]Angebot[/]")
-                .AddColumn("[bold magenta]Von[/]")
-                .AddColumn("[bold magenta]Status[/]")
-                .AddColumn("[bold magenta]Emotion[/]");
+                .AddColumn("[bold white on magenta]   Angebot   [/]")
+                .AddColumn("[bold white on magenta]   Von   [/]")
+                .AddColumn("[bold white on magenta]   Status   [/]")
+                .AddColumn("[bold white on magenta]   Emotion   [/]");
 
             table.Border = TableBorder.Rounded;
             table.BorderColor(Color.Fuchsia);
-            table.Title("[green]Live-Angebote[/]");
+            table.Title("[bold green]Live-Angebote[/]");
 
             // Wir behalten nur die letzten N Einträge, damit die Konsole nicht überläuft
             const int maxRows = 20;
@@ -54,10 +54,11 @@ namespace haggling_ui.Views
                     var basePrice = GetBasePrice(offer.Product);
                     var diff = preis - basePrice;
 
-                    var angebotCell = Markup.Escape($"{produktName} — {preis:0.00} EUR (Basis: {basePrice:0.00}, Diff: {diff:+0.00;-0.00})");
-                    var vonCell = Markup.Escape(von);
-                    var statusCell = Markup.Escape(status.ToString());
-                    var emotionCell = Markup.Escape($"{emoji} {emotion} — {reason}");
+                    // 🎨 Farbige Zellen erstellen
+                    var angebotCell = CreateColoredOfferCell(produktName, preis, basePrice, diff);
+                    var vonCell = CreateColoredPersonCell(von);
+                    var statusCell = CreateColoredStatusCell(status.ToString());
+                    var emotionCell = CreateColoredEmotionCell(emoji, emotion.ToString(), reason);
 
                     table.AddRow(angebotCell, vonCell, statusCell, emotionCell);
 
@@ -150,12 +151,76 @@ namespace haggling_ui.Views
 
         private string GetEmojiFor(Emotion emotion) => emotion switch
         {
-            Emotion.Happy   => ":D",
-            Emotion.Neutral => ":|",
-            Emotion.Annoyed => ">:/",
-            Emotion.Angry   => ">:[",
-            Emotion.Excited => "^_^",
-            _ => ":|"
+            Emotion.Happy   => "^_^",  // Freude
+            Emotion.Neutral => "-_-",  // Neutral
+            Emotion.Annoyed => ">:/",  // Genervt (bleibt gleich)
+            Emotion.Angry   => ">:[",  // Böse
+            Emotion.Excited => "^_^",  // Aufgeregt (gleich wie Happy)
+            _ => "-_-"                 // Default auf Neutral
         };
+
+        // 🎨 Farbige Zellen-Erstellungsmethoden
+        private string CreateColoredOfferCell(string produktName, decimal preis, decimal basePrice, decimal diff)
+        {
+            // Produktname: Bold für alle Produkte (gleichfarbig)
+            var coloredProduktName = $"[bold]{Markup.Escape(produktName)}[/]";
+
+            // Preis nach Logik einfärben
+            string coloredPreis;
+            if (preis < basePrice * 0.8m)
+                coloredPreis = $"[green]{preis:0.00} EUR[/]";  // Günstig
+            else if (preis > basePrice * 1.5m)
+                coloredPreis = $"[red]{preis:0.00} EUR[/]";    // Teuer
+            else
+                coloredPreis = $"[yellow]{preis:0.00} EUR[/]"; // Fair
+
+            // Differenz einfärben
+            string coloredDiff;
+            if (diff < 0)
+                coloredDiff = $"[green]{diff:+0.00;-0.00}[/]";  // Günstiger als Basis
+            else if (diff > basePrice * 0.5m)
+                coloredDiff = $"[red]{diff:+0.00;-0.00}[/]";    // Viel teurer
+            else
+                coloredDiff = $"[yellow]{diff:+0.00;-0.00}[/]"; // Moderat teurer
+
+            return $"{coloredProduktName} — {coloredPreis}\n[dim](Basis: {basePrice:0.00}, Diff: {coloredDiff})[/]";
+        }
+
+        private string CreateColoredPersonCell(string person)
+        {
+            return person switch
+            {
+                "Customer" => $"[cyan]{Markup.Escape(person)}[/]",
+                "Vendor" => $"[orange3]{Markup.Escape(person)}[/]",
+                _ => Markup.Escape(person)
+            };
+        }
+
+        private string CreateColoredStatusCell(string status)
+        {
+            return status switch
+            {
+                "Accepted" => $"[green]{Markup.Escape(status)}[/]",
+                "Stopped" => $"[red]{Markup.Escape(status)}[/]",
+                "Ongoing" => $"[blue]{Markup.Escape(status)}[/]",
+                _ => Markup.Escape(status)
+            };
+        }
+
+        private string CreateColoredEmotionCell(string emoji, string emotion, string reason)
+        {
+            // Emoticons farbig gestalten
+            string coloredEmoji = emotion switch
+            {
+                "Happy" => $"[bold green]{Markup.Escape(emoji)}[/]",
+                "Angry" => $"[bold red]{Markup.Escape(emoji)}[/]",
+                "Neutral" => $"[bold yellow]{Markup.Escape(emoji)}[/]",
+                "Annoyed" => $"[bold orange3]{Markup.Escape(emoji)}[/]",
+                "Excited" => $"[bold green]{Markup.Escape(emoji)}[/]",
+                _ => $"[bold]{Markup.Escape(emoji)}[/]"
+            };
+
+            return $"{coloredEmoji} [bold]{Markup.Escape(emotion)}[/] — {Markup.Escape(reason)}";
+        }
     }
 }
