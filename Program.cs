@@ -30,99 +30,99 @@ namespace haggling_ui
         }
     }
 
-public class Product : IProduct
-{
-    public string Name { get; init; }
-    public ProductType Type { get; init; }
-    public Percentage Rarity { get; set; }
-}
-
-public class Offer : IOffer
-{
-    public OfferStatus Status { get; set; }
-    public IProduct Product { get; set; }
-    public decimal Price { get; set; }
-    public PersonType OfferedBy { get; set; }
-}
-
-public class Customer : ICustomer
-{
-    public string Name { get; init; }
-    public int Age { get; init; }
-    public Percentage Patience { get; set; }
-
-    public IProduct ChooseProduct(IVendor vendor)
+    public class Product : IProduct
     {
-        // Wählt einfach das erste Produkt
-        return vendor.Products[0];
+        public string Name { get; init; }
+        public ProductType Type { get; init; }
+        public Percentage Rarity { get; set; }
     }
 
-    public IOffer RespondToOffer(IOffer offer, IVendor vendor)
+    public class Offer : IOffer
     {
-        if (offer.Price > 50)
+        public OfferStatus Status { get; set; }
+        public IProduct Product { get; set; }
+        public decimal Price { get; set; }
+        public PersonType OfferedBy { get; set; }
+    }
+
+    public class Customer : ICustomer
+    {
+        public string Name { get; init; }
+        public int Age { get; init; }
+        public Percentage Patience { get; set; }
+
+        public IProduct ChooseProduct(IVendor vendor)
         {
-            return new Offer
-            {
-                Status = OfferStatus.Ongoing,
-                Product = offer.Product,
-                Price = offer.Price - 10,
-                OfferedBy = PersonType.Customer
-            };
+            // Wählt einfach das erste Produkt
+            return vendor.Products[0];
         }
 
-        offer.Status = OfferStatus.Accepted;
-        return offer;
-    }
-
-    public void AcceptTrade(IOffer offer) =>
-        Console.WriteLine($"{Name} hat das Angebot akzeptiert!");
-
-    public void StopTrade() =>
-        Console.WriteLine($"{Name} hat den Handel abgebrochen.");
-}
-
-public class Vendor : IVendor
-{
-    public string Name { get; init; }
-    public int Age { get; init; }
-    public Percentage Patience { get; set; }
-    public IProduct[] Products { get; init; }
-
-    public IOffer GetStartingOffer(IProduct product, ICustomer customer)
-    {
-        return new Offer
+        public IOffer RespondToOffer(IOffer offer, IVendor vendor)
         {
-            Status = OfferStatus.Ongoing,
-            Product = product,
-            Price = 100,
-            OfferedBy = PersonType.Vendor
-        };
-    }
+            if (offer.Price > 50)
+            {
+                return new Offer
+                {
+                    Status = OfferStatus.Ongoing,
+                    Product = offer.Product,
+                    Price = offer.Price - 10,
+                    OfferedBy = PersonType.Customer
+                };
+            }
 
-    public IOffer RespondToOffer(IOffer offer, ICustomer customer)
-    {
-        if (offer.Price >= 80)
-        {
             offer.Status = OfferStatus.Accepted;
+            return offer;
         }
-        else
+
+        public void AcceptTrade(IOffer offer) =>
+            Console.WriteLine($"{Name} hat das Angebot akzeptiert!");
+
+        public void StopTrade() =>
+            Console.WriteLine($"{Name} hat den Handel abgebrochen.");
+    }
+
+    public class Vendor : IVendor
+    {
+        public string Name { get; init; }
+        public int Age { get; init; }
+        public Percentage Patience { get; set; }
+        public IProduct[] Products { get; init; }
+
+        public IOffer GetStartingOffer(IProduct product, ICustomer customer)
         {
             return new Offer
             {
                 Status = OfferStatus.Ongoing,
-                Product = offer.Product,
-                Price = offer.Price + 5,
+                Product = product,
+                Price = 100,
                 OfferedBy = PersonType.Vendor
             };
         }
-        return offer;
+
+        public IOffer RespondToOffer(IOffer offer, ICustomer customer)
+        {
+            if (offer.Price >= 80)
+            {
+                offer.Status = OfferStatus.Accepted;
+            }
+            else
+            {
+                return new Offer
+                {
+                    Status = OfferStatus.Ongoing,
+                    Product = offer.Product,
+                    Price = offer.Price + 5,
+                    OfferedBy = PersonType.Vendor
+                };
+            }
+            return offer;
+        }
+
+        public void AcceptTrade(IOffer offer) =>
+            Console.WriteLine($"{Name} hat den Handel abgeschlossen!");
+
+        public void StopTrade() =>
+            Console.WriteLine($"{Name} hat den Handel abgebrochen.");
     }
-
-    public void AcceptTrade(IOffer offer) =>
-        Console.WriteLine($"{Name} hat den Handel abgeschlossen!");
-
-    public void StopTrade() =>
-        Console.WriteLine($"{Name} hat den Handel abgebrochen.");
-}
 
 }
