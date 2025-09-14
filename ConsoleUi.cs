@@ -49,7 +49,7 @@ namespace haggling_ui
 
       foreach (var o in _offers)
       {
-        table.AddRow(o.Product.Name, $"{o.Price:0.00} €");
+        table.AddRow(o.Status.ToString(), o.Product.Name, o.OfferedBy.ToString(), $"{o.Price:0.00} €");
       }
 
       // Wenn wir vorher eine Tabelle gezeichnet haben, Cursor nach oben bewegen
