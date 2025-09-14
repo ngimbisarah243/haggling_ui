@@ -54,49 +54,34 @@ namespace haggling_ui.Views
         private static void RunGame()
         {
             Console.Clear();
+            AnsiConsole.MarkupLine("[bold green]Die Verhandlung beginnt![/]");
 
-            var customer = new Customer { Name = "Alice", Age = 30, Patience = 80 };
-            var vendor = new Vendor
+            var table = new Table();
+            table.AddColumn("[bold cyan]Runde[/]");
+            table.AddColumn("[bold yellow]Kunde[/]");
+            table.AddColumn("[bold green]Verkäufer[/]");
+
+            var rnd = new Random();
+            int customerOffer = rnd.Next(10, 20);
+            int vendorOffer = rnd.Next(25, 40);
+
+            for (int round = 1; round <= 5; round++)
             {
-                Name = "Bob",
-                Age = 45,
-                Patience = 70,
-                Products = new IProduct[]
-                {
-            new Product { Name = "Goldring", Type = ProductType.Jewelry, Rarity = 90 }
-                }
-            };
+                table.AddRow(
+                    round.ToString(),
+                    $"Bob bietet {customerOffer} Coins",
+                    $"Bobby fordert {vendorOffer} Coins");
 
-            var display = new ConsoleDisplay();
-            display.ShowProducts(vendor.Products, vendor, customer);
-
-            var product = customer.ChooseProduct(vendor);
-            var offer = vendor.GetStartingOffer(product, customer);
-
-            do
-            {
-                display.ShowOffer(offer, vendor, customer);
-
-                if (offer.OfferedBy == PersonType.Vendor)
-                    offer = customer.RespondToOffer(offer, vendor);
-                else
-                    offer = vendor.RespondToOffer(offer, customer);
-
-            } while (offer.Status == OfferStatus.Ongoing);
-
-            if (offer.Status == OfferStatus.Accepted)
-            {
-                customer.AcceptTrade(offer);
-                vendor.AcceptTrade(offer);
-            }
-            else
-            {
-                customer.StopTrade();
-                vendor.StopTrade();
+                customerOffer += rnd.Next(1, 4);
+                vendorOffer -= rnd.Next(1, 4);
             }
 
-            Console.ReadKey(true);
-            PrintTitleScreen();
+            AnsiConsole.Write(table);
+
+            bool deal = rnd.Next(0, 2) == 1;
+            Console.ReadKey();
+            PrintEndScreen(deal, (customerOffer + vendorOffer) / 2);
+
         }
 
 
@@ -116,6 +101,25 @@ namespace haggling_ui.Views
             Environment.Exit(0);
         }
 
+        private static void PrintEndScreen(bool deal, int finalPrice)
+        {
+            Console.Clear();
+            if (deal)
+            {
+                AnsiConsole.MarkupLine("[bold green]Verhandlung erfolgreich![/]");
+                AnsiConsole.MarkupLine($"[yellow]Endpreis:[/] {finalPrice} Coins");
+                AnsiConsole.MarkupLine("[green]Der Kunde und der Verkäufer sind zufrieden![/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[bold red]Verhandlung gescheitert![/]");
+                AnsiConsole.MarkupLine("[red]Der Kunde und der Verkäufer konnten sich nicht einigen.[/]");
+            }
+
+            AnsiConsole.MarkupLine("\nDrücke eine beliebige Taste, um zum Hauptmenü zurückzukehren...");
+            Console.ReadKey(true);
+            PrintTitleScreen();
+        }
     }
 
 public class ConsoleDisplay : IDisplay
