@@ -7,6 +7,7 @@
 
 using System;
 using haggling_interfaces;
+using haggling_ui.Views;
 
 namespace haggling_ui.Listeners
 {
