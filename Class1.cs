@@ -1,1 +1,0 @@
-﻿namespace haggling_ui;

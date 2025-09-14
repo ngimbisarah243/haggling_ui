@@ -1,30 +1,35 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Spectre.Console;
 using haggling_interfaces;
+using Spectre.Console;
 
 namespace haggling_ui.Views
 {
-    // SpectreConsoleUI liest Events aus dem Channel und zeigt sie an.
+    // SpectreConsoleUI: Zeigt Haggling-Events in einer schönen Konsolen-UI an
     public class SpectreConsoleUI
     {
         private readonly Channel<IOffer> _offerChannel;
         private bool? _dealSuccessful = null;
 
-        // Konstruktor: Channel wird übergeben
         public SpectreConsoleUI(Channel<IOffer> offerChannel)
         {
             _offerChannel = offerChannel;
         }
 
-        // Startet die UI und zeigt Events live als Tabelle an
+        // Startet die UI und zeigt Events live als große Tabelle an
         public async Task RunAsync()
         {
             AnsiConsole.MarkupLine("[bold yellow]Starte Haggling-Event-UI...[/]");
+            AnsiConsole.WriteLine();
+            
+            // Titel einmal am Anfang anzeigen
+            AnsiConsole.MarkupLine("[bold green]📋 Live-Angebote[/]");
+            AnsiConsole.WriteLine();
 
-            // Tabelle anlegen (Spalten: Angebot, Von, Status, Emotion) mit rosa Header-Hintergrund
+            // Tabelle anlegen OHNE eigenen Titel (damit er nicht mehrfach erscheint)
             var table = new Table()
                 .AddColumn("[bold white on magenta]   Angebot   [/]")
                 .AddColumn("[bold white on magenta]   Von   [/]")
@@ -33,198 +38,188 @@ namespace haggling_ui.Views
 
             table.Border = TableBorder.Rounded;
             table.BorderColor(Color.Fuchsia);
-            table.Title("[bold green]Live-Angebote[/]");
+            // KEIN table.Title() - das war das Problem!
 
-            // Wir behalten nur die letzten N Einträge, damit die Konsole nicht überläuft
             const int maxRows = 20;
-
-            // Live-Ausgabe: bei jedem neuen Event die Tabelle aktualisieren
-            await AnsiConsole.Live(table)
-                .StartAsync(async ctx =>
+            
+            // Live-Ausgabe mit Console.Clear für saubere Darstellung
+            while (await _offerChannel.Reader.WaitToReadAsync())
+            {
+                while (_offerChannel.Reader.TryRead(out var offer))
                 {
-                    while (await _offerChannel.Reader.WaitToReadAsync())
+                    // Event Details
+                    var produktName = offer.Product?.Name ?? "(kein Produkt)";
+                    var preis = offer.Price;
+                    var status = offer.Status;
+                    var von = offer.OfferedBy.ToString();
+
+                    var (emotion, reason) = DetectEmotion(offer);
+                    var emoji = GetEmojiFor(emotion);
+                    
+                    var basePrice = GetBasePrice(offer.Product);
+                    var diff = preis - basePrice;
+                    
+                    // 🎨 Farbige Zellen erstellen
+                    var angebotCell = CreateColoredOfferCell(produktName, preis, basePrice, diff);
+                    var vonCell = CreateColoredPersonCell(von);
+                    var statusCell = CreateColoredStatusCell(status.ToString());
+                    var emotionCell = CreateColoredEmotionCell(emoji, emotion.ToString(), reason);
+
+                    table.AddRow(angebotCell, vonCell, statusCell, emotionCell);
+
+                    // Begrenze Anzahl der Zeilen
+                    if (table.Rows.Count > maxRows)
                     {
-                        while (_offerChannel.Reader.TryRead(out var offer))
-                        {
-                            var produktName = offer.Product?.Name ?? "(kein Produkt)";
-                            var preis = offer.Price;
-                            var status = offer.Status;
-                            var von = offer.OfferedBy.ToString();
-
-                            var (emotion, reason) = DetectEmotion(offer);
-                            var emoji = GetEmojiFor(emotion);
-
-                            var basePrice = GetBasePrice(offer.Product);
-                            var diff = preis - basePrice;
-
-                            // 🎨 Farbige Zellen erstellen
-                            var angebotCell = CreateColoredOfferCell(produktName, preis, basePrice, diff);
-                            var vonCell = CreateColoredPersonCell(von);
-                            var statusCell = CreateColoredStatusCell(status.ToString());
-                            var emotionCell = CreateColoredEmotionCell(emoji, emotion.ToString(), reason);
-
-                            table.AddRow(angebotCell, vonCell, statusCell, emotionCell);
-
-                            // Begrenze Anzahl der Zeilen
-                            if (table.Rows.Count > maxRows)
-                            {
-                                table.Rows.RemoveAt(0);
-                            }
-
-                            // Live-Update ohne Console.Clear()
-                            ctx.UpdateTarget(table);
-                            await Task.Delay(500); // Kurze Pause zwischen Updates
-
-                            // _dealSuccessful setzen wie zuvor
-                            if (offer.Status == OfferStatus.Accepted)
-                                _dealSuccessful = true;
-                            else if (offer.Status == OfferStatus.Stopped)
-                                _dealSuccessful = false;
-                        }
+                        table.Rows.RemoveAt(0);
                     }
-                });
+
+                    // Console leeren und Titel + Tabelle neu zeichnen
+                    Console.Clear();
+                    AnsiConsole.MarkupLine("[bold yellow]Starte Haggling-Event-UI...[/]");
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.MarkupLine("[bold green]📋 Live-Angebote[/]");
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.Write(table);
+                    
+                    if (offer.Status == OfferStatus.Accepted)
+                        _dealSuccessful = true;
+                    else if (offer.Status == OfferStatus.Stopped)
+                        _dealSuccessful = false;
+                        
+                    // Pause zwischen Updates
+                    await Task.Delay(800);
+                }
+            }
 
             // Nach Ende: Ergebnis anzeigen
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
             if (_dealSuccessful == true)
             {
-                AnsiConsole.MarkupLine("[bold green] Verhandlung erfolgreich! Ein Deal wurde abgeschlossen.[/]");
+                AnsiConsole.MarkupLine("[bold green]✅ Verhandlung erfolgreich! Ein Deal wurde abgeschlossen.[/]");
             }
             else if (_dealSuccessful == false)
             {
-                AnsiConsole.MarkupLine("[bold red] Verhandlung gescheitert! Kein Deal zustande gekommen.[/]");
+                AnsiConsole.MarkupLine("[bold red]❌ Verhandlung gescheitert! Kein Deal zustande gekommen.[/]");
             }
             else
             {
-                AnsiConsole.MarkupLine("[yellow] Verhandlung beendet ohne Ergebnis.[/]");
+                AnsiConsole.MarkupLine("[yellow]⏸️ Verhandlung beendet ohne Ergebnis.[/]");
             }
-
-            Console.ReadKey();
         }
 
-        private decimal GetBasePrice(IProduct? product)
-        {
-            if (product == null)
-                return 0;
-            return product.Rarity.Value * 0.5m;
-        }
-
-        private (Emotion emotion, string reason) DetectEmotion(IOffer offer)
+        // Bestimmt die Emotion basierend auf dem Angebot
+        private (string emotion, string reason) DetectEmotion(IOffer offer)
         {
             var basePrice = GetBasePrice(offer.Product);
+            var diff = offer.Price - basePrice;
+            var diffPercent = (diff / basePrice) * 100;
 
-            if (offer.Status == OfferStatus.Accepted)
+            return offer.Status switch
             {
-                if (offer.OfferedBy == PersonType.Customer)
-                {
-                    if (offer.Price <= basePrice)
-                        return (Emotion.Happy, $"Kunde freut sich: {offer.Price} EUR ist günstig (Basis {basePrice})");
-                    else
-                        return (Emotion.Neutral, $"Kunde akzeptiert, aber zahlt mehr als gedacht (Basis {basePrice})");
-                }
-                else if (offer.OfferedBy == PersonType.Vendor)
-                {
-                    if (offer.Price >= basePrice)
-                        return (Emotion.Happy, $"Verkäufer freut sich: {offer.Price} EUR bringt Gewinn (Basis {basePrice})");
-                    else
-                        return (Emotion.Neutral, $"Verkäufer akzeptiert zähneknirschend, Preis unter Basis {basePrice}");
-                }
-            }
-
-            if (offer.Status == OfferStatus.Stopped)
-            {
-                if (offer.Price < basePrice * 0.5m)
-                    return (Emotion.Angry, $"Verhandlung abgebrochen – Preis {offer.Price} war VIEL zu niedrig (Basis {basePrice})");
-                if (offer.Price > basePrice * 2)
-                    return (Emotion.Angry, $"Verhandlung abgebrochen – Preis {offer.Price} war unrealistisch hoch (Basis {basePrice})");
-
-                return (Emotion.Neutral, "Verhandlung abgebrochen ohne Einigung 😐");
-            }
-
-            if (offer.Price < basePrice * 0.5m)
-                return (Emotion.Annoyed, $"Preis {offer.Price} ist viel zu niedrig (Basis: {basePrice})");
-
-            if (offer.Price > basePrice * 2)
-                return (Emotion.Annoyed, $"Preis {offer.Price} ist überzogen hoch (Basis: {basePrice})");
-
-            if (offer.Price < basePrice * 0.8m)
-                return (Emotion.Excited, $"Sehr günstiges Angebot 🤩 (Basis {basePrice})");
-
-            return (Emotion.Neutral, "Normales Angebot");
+                OfferStatus.Accepted when diffPercent > 10 => ("Happy", $"Verkäufer freut sich: {offer.Price} EUR bringt Gewinn (Basis {basePrice:F1})"),
+                OfferStatus.Accepted when diffPercent < -10 => ("Happy", $"Kunde freut sich: {offer.Price} EUR ist günstig (Basis {basePrice:F1})"),
+                OfferStatus.Accepted => ("Neutral", $"Verkäufer akzeptiert zähneknirschend, Preis unter Basis {basePrice:F1}"),
+                OfferStatus.Stopped when Math.Abs(diffPercent) > 50 => ("Angry", $"Verhandlung abgebrochen – Preis {offer.Price} war unrealistisch {(diffPercent > 0 ? "hoch" : "niedrig")} (Basis {basePrice:F1})"),
+                OfferStatus.Stopped => ("Angry", "Verhandlung abgebrochen ohne Einigung �"),
+                _ when offer.OfferedBy == PersonType.Customer && diffPercent < -30 => ("Annoyed", $"Vendor ist verärgert: Kunde bietet nur {offer.Price} EUR (viel zu wenig für Basis {basePrice:F1})"),
+                _ when offer.OfferedBy == PersonType.Vendor && diffPercent > 30 => ("Annoyed", $"Customer ist verärgert: Vendor verlangt {offer.Price} EUR (viel zu teuer für Basis {basePrice:F1})"),
+                _ when Math.Abs(diffPercent) < 5 => ("Excited", $"Sehr faires Angebot 🤩 - nah an Basis {basePrice:F1}"),
+                _ => ("Neutral", $"Normales Angebot von {offer.OfferedBy}")
+            };
         }
 
-        private string GetEmojiFor(Emotion emotion) => emotion switch
+        // Gibt Emoji für Emotion zurück
+        private string GetEmojiFor(string emotion)
         {
-            Emotion.Happy   => "^_^",  // Freude
-            Emotion.Neutral => "-_-",  // Neutral
-            Emotion.Annoyed => ">:/",  // Genervt (bleibt gleich)
-            Emotion.Angry   => ">:[",  // Böse
-            Emotion.Excited => "^_^",  // Aufgeregt (gleich wie Happy)
-            _ => "-_-"                 // Default auf Neutral
-        };
+            return emotion switch
+            {
+                "Happy" => "^_^",
+                "Excited" => "^_^",
+                "Neutral" => "-_-",
+                "Annoyed" => ">:/",
+                "Angry" => ">:[",
+                _ => "-_-"
+            };
+        }
 
-        // 🎨 Farbige Zellen-Erstellungsmethoden
+            // Berechnet Basispreis für ein Produkt
+        private decimal GetBasePrice(IProduct? product)
+        {
+            if (product == null) return 10m;
+
+            var basePrice = product.Type switch
+            {
+                ProductType.Tools => 35m,
+                ProductType.Food => 15m,
+                ProductType.Clothing => 25m,
+                ProductType.Electronics => 65m,
+                ProductType.Furniture => 80m,
+                ProductType.Toys => 20m,
+                ProductType.Books => 12m,
+                ProductType.SportsEquipment => 45m,
+                ProductType.Jewelry => 120m,
+                ProductType.BeautyProducts => 28m,
+                _ => 30m
+            };
+
+            // Rarity-Modifier: +0% bis +100% je nach Seltenheit
+            var rarityMultiplier = 1 + (product.Rarity.Value / 100m);
+            return basePrice * rarityMultiplier;
+        }
+
+        // 🎨 Farbige Zellen-Methoden
         private string CreateColoredOfferCell(string produktName, decimal preis, decimal basePrice, decimal diff)
         {
-            // Produktname: Bold für alle Produkte (gleichfarbig)
-            var coloredProduktName = $"[bold]{Markup.Escape(produktName)}[/]";
+            var diffColor = diff switch
+            {
+                > 20 => "red",
+                > 10 => "orange3",
+                > 0 => "yellow",
+                > -10 => "lime",
+                _ => "green"
+            };
 
-            // Preis nach Logik einfärben
-            string coloredPreis;
-            if (preis < basePrice * 0.8m)
-                coloredPreis = $"[green]{preis:0.00} EUR[/]";  // Günstig
-            else if (preis > basePrice * 1.5m)
-                coloredPreis = $"[red]{preis:0.00} EUR[/]";    // Teuer
-            else
-                coloredPreis = $"[yellow]{preis:0.00} EUR[/]"; // Fair
+            // Escape product name to prevent markup parsing issues
+            var escapedProduktName = produktName.Replace("[", "[[").Replace("]", "]]");
 
-            // Differenz einfärben
-            string coloredDiff;
-            if (diff < 0)
-                coloredDiff = $"[green]{diff:+0.00;-0.00}[/]";  // Günstiger als Basis
-            else if (diff > basePrice * 0.5m)
-                coloredDiff = $"[red]{diff:+0.00;-0.00}[/]";    // Viel teurer
-            else
-                coloredDiff = $"[yellow]{diff:+0.00;-0.00}[/]"; // Moderat teurer
-
-            return $"{coloredProduktName} — {coloredPreis}\n[dim](Basis: {basePrice:0.00}, Diff: {coloredDiff})[/]";
+            return $"[bold]{escapedProduktName}[/] — [bold green]{preis:F2} EUR[/]\n([dim]Basis: [bold]{basePrice:F2}[/], Diff: [{diffColor}]{(diff >= 0 ? "+" : "")}{diff:F2}[/][/])";
         }
 
-        private string CreateColoredPersonCell(string person)
+        private string CreateColoredPersonCell(string von)
         {
-            return person switch
-            {
-                "Customer" => $"[cyan]{Markup.Escape(person)}[/]",
-                "Vendor" => $"[orange3]{Markup.Escape(person)}[/]",
-                _ => Markup.Escape(person)
-            };
+            var color = von == "Vendor" ? "blue" : "cyan";
+            return $"[{color}]{von}[/]";
         }
 
         private string CreateColoredStatusCell(string status)
         {
-            return status switch
+            var color = status switch
             {
-                "Accepted" => $"[green]{Markup.Escape(status)}[/]",
-                "Stopped" => $"[red]{Markup.Escape(status)}[/]",
-                "Ongoing" => $"[blue]{Markup.Escape(status)}[/]",
-                _ => Markup.Escape(status)
+                "Ongoing" => "yellow",
+                "Accepted" => "green",
+                "Stopped" => "red",
+                _ => "white"
             };
+            return $"[{color}]{status}[/]";
         }
 
         private string CreateColoredEmotionCell(string emoji, string emotion, string reason)
         {
-            // Emoticons farbig gestalten
-            string coloredEmoji = emotion switch
+            var color = emotion switch
             {
-                "Happy" => $"[bold green]{Markup.Escape(emoji)}[/]",
-                "Angry" => $"[bold red]{Markup.Escape(emoji)}[/]",
-                "Neutral" => $"[bold yellow]{Markup.Escape(emoji)}[/]",
-                "Annoyed" => $"[bold orange3]{Markup.Escape(emoji)}[/]",
-                "Excited" => $"[bold green]{Markup.Escape(emoji)}[/]",
-                _ => $"[bold]{Markup.Escape(emoji)}[/]"
+                "Happy" => "green",
+                "Excited" => "green",
+                "Neutral" => "yellow",
+                "Annoyed" => "orange3",
+                "Angry" => "red",
+                _ => "white"
             };
 
-            return $"{coloredEmoji} [bold]{Markup.Escape(emotion)}[/] — {Markup.Escape(reason)}";
+            // Escape special characters to prevent markup parsing issues
+            var escapedEmoji = emoji.Replace("[", "[[").Replace("]", "]]");
+            var escapedReason = reason.Replace("[", "[[").Replace("]", "]]");
+
+            return $"[bold {color}]{escapedEmoji} {emotion}[/] — [dim]{escapedReason}[/]";
         }
     }
 }

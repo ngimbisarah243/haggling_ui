@@ -20,38 +20,94 @@ namespace Mocking
         }
 
         // Startet die Event-Generierung in einem Hintergrund-Task
-        public void Start()
+        public Task Start()
         {
             // Task wird gestartet, um Events zu generieren
-            Task.Run(async () =>
+            return Task.Run(async () =>
             {
-                while (true)
+                // Generiere eine begrenzte Anzahl von Events (wie die ursprünglichen Test-Szenarien)
+                const int maxEvents = 8; // Weniger Events für übersichtlichere Demo
+                
+                for (int i = 0; i < maxEvents; i++)
                 {
                     var offer = GenerateRandomOffer();
                     await _offerChannel.Writer.WriteAsync(offer);
-                    await Task.Delay(_random.Next(500, 2000)); // zufällige Pause
+                    
+                    if (i < maxEvents - 1) // Don't delay after the last event
+                    {
+                        await Task.Delay(_random.Next(1200, 2000)); // Langsamer für bessere Lesbarkeit
+                    }
                 }
+                
+                // Channel schließen, damit die UI weiß, dass keine weiteren Events kommen
+                _offerChannel.Writer.Complete();
             });
         }
 
         // Erzeugt ein zufälliges IOffer-Objekt
         private IOffer GenerateRandomOffer()
         {
-            // Generiere ein zufälliges Produkt
-            var product = new ProductMock
+            // Realistische Produktnamen nach Kategorie
+            var productNames = new Dictionary<ProductType, string[]>
             {
-                Name = $"Produkt{_random.Next(1, 10)}",
-                Type = (haggling_interfaces.ProductType)_random.Next(Enum.GetValues(typeof(haggling_interfaces.ProductType)).Length),
-                Rarity = _random.Next(0, 100)
+                [ProductType.Tools] = new[] { "Stahlschwert", "Eisenhammer", "Silberdolch", "Kriegsaxt", "Rüstung" },
+                [ProductType.Food] = new[] { "Gewürzbrot", "Honigwein", "Käselaib", "Räucherfisch", "Apfelwein" },
+                [ProductType.Clothing] = new[] { "Seidenkleid", "Ledermantel", "Wollmantel", "Leinenhose", "Samthandschuhe" },
+                [ProductType.Electronics] = new[] { "Magischer Kristall", "Leuchtstein", "Kompass", "Fernrohr", "Sanduhr" },
+                [ProductType.Furniture] = new[] { "Eichentisch", "Polsterstuhl", "Truhe", "Bücherregal", "Schreibpult" },
+                [ProductType.Toys] = new[] { "Holzpferd", "Stoffpuppe", "Würfelset", "Puzzle", "Kreisel" },
+                [ProductType.Books] = new[] { "Kochbuch", "Reiseführer", "Märchenbuch", "Geschichtsbuch", "Gedichtband" },
+                [ProductType.SportsEquipment] = new[] { "Bogen", "Köcher", "Schild", "Helm", "Stiefel" },
+                [ProductType.Jewelry] = new[] { "Goldring", "Silberkette", "Edelstein", "Armband", "Ohrring" },
+                [ProductType.BeautyProducts] = new[] { "Parfüm", "Seife", "Spiegel", "Kamm", "Salbe" }
             };
 
-            // Generiere ein zufälliges Angebot
+            // Wähle zufälligen Produkttyp und Namen
+            var productType = (ProductType)_random.Next(Enum.GetValues(typeof(ProductType)).Length);
+            var names = productNames[productType];
+            var productName = names[_random.Next(names.Length)];
+
+            // Generiere realistische Basispreise je nach Produkttyp
+            var basePrice = productType switch
+            {
+                ProductType.Tools => _random.Next(25, 80),
+                ProductType.Food => _random.Next(5, 25),
+                ProductType.Clothing => _random.Next(15, 60),
+                ProductType.Electronics => _random.Next(30, 100),
+                ProductType.Furniture => _random.Next(40, 120),
+                ProductType.Toys => _random.Next(8, 35),
+                ProductType.Books => _random.Next(3, 20),
+                ProductType.SportsEquipment => _random.Next(20, 75),
+                ProductType.Jewelry => _random.Next(50, 200),
+                ProductType.BeautyProducts => _random.Next(10, 45),
+                _ => _random.Next(10, 50)
+            };
+
+            var product = new ProductMock
+            {
+                Name = productName,
+                Type = productType,
+                Rarity = _random.Next(20, 90)
+            };
+
+            // Generiere realistische Preisvariation (±50% vom Basispreis)
+            var priceVariation = _random.NextDouble() * 1.0 - 0.5; // -50% bis +50%
+            var finalPrice = Math.Max(1, basePrice + (int)(basePrice * priceVariation));
+
+            // Wähle realistischen Status (mehr Ongoing als andere)
+            var status = _random.NextDouble() switch
+            {
+                < 0.6 => OfferStatus.Ongoing,
+                < 0.8 => OfferStatus.Accepted,
+                _ => OfferStatus.Stopped
+            };
+
             return new OfferMock
             {
-                Status = (haggling_interfaces.OfferStatus)_random.Next(Enum.GetValues(typeof(haggling_interfaces.OfferStatus)).Length),
+                Status = status,
                 Product = product,
-                Price = _random.Next(10, 100),
-                OfferedBy = (haggling_interfaces.PersonType)_random.Next(2)
+                Price = finalPrice,
+                OfferedBy = (PersonType)_random.Next(2)
             };
         }
     }
