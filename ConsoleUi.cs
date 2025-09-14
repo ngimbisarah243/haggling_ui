@@ -18,7 +18,11 @@ namespace haggling_ui
 
         public void ShowProducts(IEnumerable<Product> products, Vendor vendor, Customer customer)
         {
-
+            if (products == null)
+            {
+                
+            }
+            throw new NotImplementedException();
         }
     }
 }
