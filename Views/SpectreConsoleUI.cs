@@ -36,7 +36,7 @@ namespace haggling_ui.Views
                 .AddColumn("[bold white on magenta]   Status   [/]")
                 .AddColumn("[bold white on magenta]   Emotion   [/]");
 
-            table.Border = TableBorder.Rounded;
+            table.Border = TableBorder.Double;
             table.BorderColor(Color.Fuchsia);
             // KEIN table.Title() - das war das Problem!
 
