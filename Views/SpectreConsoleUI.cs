@@ -1,12 +1,7 @@
-// REFERENCE: haggling_interfaces.csproj gefunden — benutze Interface-Typen
-// Diese Klasse stellt eine einfache UI mit Spectre.Console dar,
-// die Events aus einem Channel liest und live anzeigt.
-//
-// Verschoben aus Mocking nach Views für bessere Architektur.
-// Autor: Team
-// Datum: 13.09.2025
-
+using System;
+using System.Collections.Generic;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using Spectre.Console;
 using haggling_interfaces;
 
@@ -24,11 +19,26 @@ namespace haggling_ui.Views
             _offerChannel = offerChannel;
         }
 
-        // Startet die UI und zeigt Events live an
+        // Startet die UI und zeigt Events live als Tabelle an
         public async Task RunAsync()
         {
-            // Starte die UI-Ausgabe
             AnsiConsole.MarkupLine("[bold yellow]Starte Haggling-Event-UI...[/]");
+
+            // Tabelle anlegen (Spalten: Angebot, Von, Status, Emotion)
+            var table = new Table()
+                .AddColumn("[bold magenta]Angebot[/]")
+                .AddColumn("[bold magenta]Von[/]")
+                .AddColumn("[bold magenta]Status[/]")
+                .AddColumn("[bold magenta]Emotion[/]");
+
+            table.Border = TableBorder.Rounded;
+            table.BorderColor(Color.Fuchsia);
+            table.Title("[green]Live-Angebote[/]");
+
+            // Wir behalten nur die letzten N Einträge, damit die Konsole nicht überläuft
+            const int maxRows = 20;
+
+            // Live-Ausgabe: bei jedem neuen Event die Tabelle aktualisieren
             while (await _offerChannel.Reader.WaitToReadAsync())
             {
                 while (_offerChannel.Reader.TryRead(out var offer))
@@ -36,31 +46,41 @@ namespace haggling_ui.Views
                     var produktName = offer.Product?.Name ?? "(kein Produkt)";
                     var preis = offer.Price;
                     var status = offer.Status;
-                    var von = offer.OfferedBy;
-                    
+                    var von = offer.OfferedBy.ToString();
+
                     var (emotion, reason) = DetectEmotion(offer);
                     var emoji = GetEmojiFor(emotion);
 
                     var basePrice = GetBasePrice(offer.Product);
                     var diff = preis - basePrice;
 
-                    AnsiConsole.MarkupLine(
-                        $"[green]Angebot:[/] [bold]{produktName}[/] für [yellow]{preis} EUR[/] " +
-                        $"(Basis: {basePrice:0.00} EUR, Diff: {diff:+0.00;-0.00}) | " +
-                        $"Status: [blue]{status}[/] | Von: [red]{von}[/] | " +
-                        $"Emotion: {emoji.EscapeMarkup()} {emotion} [italic]{reason}[/]"
-                    );
+                    var angebotCell = Markup.Escape($"{produktName} — {preis:0.00} EUR (Basis: {basePrice:0.00}, Diff: {diff:+0.00;-0.00})");
+                    var vonCell = Markup.Escape(von);
+                    var statusCell = Markup.Escape(status.ToString());
+                    var emotionCell = Markup.Escape($"{emoji} {emotion} — {reason}");
 
+                    table.AddRow(angebotCell, vonCell, statusCell, emotionCell);
+
+                    // Begrenze Anzahl der Zeilen
+                    if (table.Rows.Count > maxRows)
+                    {
+                        table.Rows.RemoveAt(0);
+                    }
+
+                    // Neu zeichnen
+                    Console.Clear();
+                    AnsiConsole.Write(table);
+
+                    // _dealSuccessful setzen wie zuvor
                     if (offer.Status == OfferStatus.Accepted)
                         _dealSuccessful = true;
                     else if (offer.Status == OfferStatus.Stopped)
                         _dealSuccessful = false;
                 }
-
-                
-                
             }
-            
+
+            // Nach Ende: Ergebnis anzeigen
+            Console.WriteLine();
             if (_dealSuccessful == true)
             {
                 AnsiConsole.MarkupLine("[bold green] Verhandlung erfolgreich! Ein Deal wurde abgeschlossen.[/]");
@@ -76,68 +96,58 @@ namespace haggling_ui.Views
 
             Console.ReadKey();
         }
-        private decimal GetBasePrice(IProduct product)
+
+        private decimal GetBasePrice(IProduct? product)
         {
-            // Falls Produkt null ist → 0 zurück
             if (product == null)
                 return 0;
-
-            // Beispiel: Rarity bestimmt den Basispreis
-            // Rarity 50 → 25 EUR
             return product.Rarity.Value * 0.5m;
         }
 
-        
-      private (Emotion emotion, string reason) DetectEmotion(IOffer offer)
-{
-    var basePrice = GetBasePrice(offer.Product);
-
-    // ✅ Accepted-Status differenzieren
-    if (offer.Status == OfferStatus.Accepted)
-    {
-        if (offer.OfferedBy == PersonType.Customer)
+        private (Emotion emotion, string reason) DetectEmotion(IOffer offer)
         {
-            // Kunde hat akzeptiert → prüfe Preis
-            if (offer.Price <= basePrice)
-                return (Emotion.Happy, $"Kunde freut sich: {offer.Price} EUR ist günstig (Basis {basePrice})");
-            else
-                return (Emotion.Neutral, $"Kunde akzeptiert, aber zahlt mehr als gedacht (Basis {basePrice})");
+            var basePrice = GetBasePrice(offer.Product);
+
+            if (offer.Status == OfferStatus.Accepted)
+            {
+                if (offer.OfferedBy == PersonType.Customer)
+                {
+                    if (offer.Price <= basePrice)
+                        return (Emotion.Happy, $"Kunde freut sich: {offer.Price} EUR ist günstig (Basis {basePrice})");
+                    else
+                        return (Emotion.Neutral, $"Kunde akzeptiert, aber zahlt mehr als gedacht (Basis {basePrice})");
+                }
+                else if (offer.OfferedBy == PersonType.Vendor)
+                {
+                    if (offer.Price >= basePrice)
+                        return (Emotion.Happy, $"Verkäufer freut sich: {offer.Price} EUR bringt Gewinn (Basis {basePrice})");
+                    else
+                        return (Emotion.Neutral, $"Verkäufer akzeptiert zähneknirschend, Preis unter Basis {basePrice}");
+                }
+            }
+
+            if (offer.Status == OfferStatus.Stopped)
+            {
+                if (offer.Price < basePrice * 0.5m)
+                    return (Emotion.Angry, $"Verhandlung abgebrochen – Preis {offer.Price} war VIEL zu niedrig (Basis {basePrice})");
+                if (offer.Price > basePrice * 2)
+                    return (Emotion.Angry, $"Verhandlung abgebrochen – Preis {offer.Price} war unrealistisch hoch (Basis {basePrice})");
+
+                return (Emotion.Neutral, "Verhandlung abgebrochen ohne Einigung 😐");
+            }
+
+            if (offer.Price < basePrice * 0.5m)
+                return (Emotion.Annoyed, $"Preis {offer.Price} ist viel zu niedrig (Basis: {basePrice})");
+
+            if (offer.Price > basePrice * 2)
+                return (Emotion.Annoyed, $"Preis {offer.Price} ist überzogen hoch (Basis: {basePrice})");
+
+            if (offer.Price < basePrice * 0.8m)
+                return (Emotion.Excited, $"Sehr günstiges Angebot 🤩 (Basis {basePrice})");
+
+            return (Emotion.Neutral, "Normales Angebot");
         }
-        else if (offer.OfferedBy == PersonType.Vendor)
-        {
-            // Vendor hat akzeptiert → prüfe Preis
-            if (offer.Price >= basePrice)
-                return (Emotion.Happy, $"Verkäufer freut sich: {offer.Price} EUR bringt Gewinn (Basis {basePrice})");
-            else
-                return (Emotion.Neutral, $"Verkäufer akzeptiert zähneknirschend, Preis unter Basis {basePrice}");
-        }
-    }
 
-    // ❌ Stopped
-    if (offer.Status == OfferStatus.Stopped)
-    {
-        if (offer.Price < basePrice * 0.5m)
-            return (Emotion.Angry, $"Verhandlung abgebrochen – Preis {offer.Price} war VIEL zu niedrig (Basis {basePrice})");
-        if (offer.Price > basePrice * 2)
-            return (Emotion.Angry, $"Verhandlung abgebrochen – Preis {offer.Price} war unrealistisch hoch (Basis {basePrice})");
-
-        return (Emotion.Neutral, "Verhandlung abgebrochen ohne Einigung 😐");
-    }
-
-    // Ongoing mit Preisspanne prüfen
-    if (offer.Price < basePrice * 0.5m)
-        return (Emotion.Annoyed, $"Preis {offer.Price} ist viel zu niedrig (Basis: {basePrice})");
-
-    if (offer.Price > basePrice * 2)
-        return (Emotion.Annoyed, $"Preis {offer.Price} ist überzogen hoch (Basis: {basePrice})");
-
-    if (offer.Price < basePrice * 0.8m)
-        return (Emotion.Excited, $"Sehr günstiges Angebot 🤩 (Basis {basePrice})");
-
-    return (Emotion.Neutral, "Normales Angebot");
-}
-
-        
         private string GetEmojiFor(Emotion emotion) => emotion switch
         {
             Emotion.Happy   => ":D",
@@ -147,6 +157,5 @@ namespace haggling_ui.Views
             Emotion.Excited => "^_^",
             _ => ":|"
         };
-
     }
 }
