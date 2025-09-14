@@ -1,9 +1,10 @@
 ﻿using System;
+using haggling_interfaces;
 using Spectre.Console;
 
 namespace haggling_ui.Views
 {
-    public static class PrintScreen
+    public class PrintScreen
     {
         public static void PrintTitleScreen()
         {
@@ -31,7 +32,7 @@ namespace haggling_ui.Views
             } while (key != ConsoleKey.Enter);
 
             if (selectedIndex == 0)
-               RunGame();
+                RunGame();
             else if (selectedIndex == 1)
                 ShowOptions();
             else if (selectedIndex == 2)
@@ -53,11 +54,52 @@ namespace haggling_ui.Views
         private static void RunGame()
         {
             Console.Clear();
-            AnsiConsole.MarkupLine("[bold green]Spiel gestartet! (noch nicht implementiert)[/]");
+
+            var customer = new Customer { Name = "Alice", Age = 30, Patience = 80 };
+            var vendor = new Vendor
+            {
+                Name = "Bob",
+                Age = 45,
+                Patience = 70,
+                Products = new IProduct[]
+                {
+            new Product { Name = "Goldring", Type = ProductType.Jewelry, Rarity = 90 }
+                }
+            };
+
+            var display = new ConsoleDisplay();
+            display.ShowProducts(vendor.Products, vendor, customer);
+
+            var product = customer.ChooseProduct(vendor);
+            var offer = vendor.GetStartingOffer(product, customer);
+
+            do
+            {
+                display.ShowOffer(offer, vendor, customer);
+
+                if (offer.OfferedBy == PersonType.Vendor)
+                    offer = customer.RespondToOffer(offer, vendor);
+                else
+                    offer = vendor.RespondToOffer(offer, customer);
+
+            } while (offer.Status == OfferStatus.Ongoing);
+
+            if (offer.Status == OfferStatus.Accepted)
+            {
+                customer.AcceptTrade(offer);
+                vendor.AcceptTrade(offer);
+            }
+            else
+            {
+                customer.StopTrade();
+                vendor.StopTrade();
+            }
+
             Console.ReadKey(true);
             PrintTitleScreen();
         }
-      
+
+
 
         private static void ShowOptions()
         {
@@ -73,6 +115,25 @@ namespace haggling_ui.Views
             AnsiConsole.MarkupLine("[bold red]Spiel beendet.[/]");
             Environment.Exit(0);
         }
-        
+
     }
+
+public class ConsoleDisplay : IDisplay
+{
+    public void ShowProducts(IProduct[] products, IVendor vendor, ICustomer customer)
+    {
+        AnsiConsole.MarkupLine($"[bold]{vendor.Name}[/] bietet folgende Produkte an:");
+        foreach (var product in products)
+        {
+            AnsiConsole.MarkupLine($"- {product.Name} ({product.Type}, Rarity: {product.Rarity.Value}%)");
+        }
+    }
+
+    public void ShowOffer(IOffer offer, IVendor vendor, ICustomer customer)
+    {
+        string who = offer.OfferedBy == PersonType.Customer ? customer.Name : vendor.Name;
+        AnsiConsole.MarkupLine($"[yellow]{who}[/] bietet [green]{offer.Price}[/] für {offer.Product.Name} an. (Status: {offer.Status})");
+    }
+}
+
 }
