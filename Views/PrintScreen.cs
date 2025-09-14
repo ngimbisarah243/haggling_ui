@@ -6,6 +6,7 @@ namespace haggling_ui.Views
 {
     public class PrintScreen
     {
+
         public static void PrintTitleScreen()
         {
             Console.Clear();
@@ -61,27 +62,38 @@ namespace haggling_ui.Views
             table.AddColumn("[bold yellow]Kunde[/]");
             table.AddColumn("[bold green]Verkäufer[/]");
 
+            bool deal = false;
             var rnd = new Random();
-            int customerOffer = rnd.Next(10, 20);
+            int customerOffer = rnd.Next(10, 30);
             int vendorOffer = rnd.Next(25, 40);
 
-            for (int round = 1; round <= 5; round++)
+            int round = 1;
+            while (round <= 5 && !deal)
             {
                 table.AddRow(
                     round.ToString(),
                     $"Bob bietet {customerOffer} Coins",
                     $"Bobby fordert {vendorOffer} Coins");
 
+                if (customerOffer != vendorOffer)
+                {
+                    deal = false;
+                }
+                else
+                {
+                    deal = true;
+                }
                 customerOffer += rnd.Next(1, 4);
                 vendorOffer -= rnd.Next(1, 4);
+                round++;
             }
 
             AnsiConsole.Write(table);
-
-            bool deal = rnd.Next(0, 2) == 1;
+            
             Console.ReadKey();
-            PrintEndScreen(deal, (customerOffer + vendorOffer) / 2);
 
+            PrintEndScreen(deal, (customerOffer + vendorOffer) / 2);
+            
         }
 
 
@@ -122,22 +134,22 @@ namespace haggling_ui.Views
         }
     }
 
-public class ConsoleDisplay : IDisplay
-{
-    public void ShowProducts(IProduct[] products, IVendor vendor, ICustomer customer)
+    public class ConsoleDisplay : IDisplay
     {
-        AnsiConsole.MarkupLine($"[bold]{vendor.Name}[/] bietet folgende Produkte an:");
-        foreach (var product in products)
+        public void ShowProducts(IProduct[] products, IVendor vendor, ICustomer customer)
         {
-            AnsiConsole.MarkupLine($"- {product.Name} ({product.Type}, Rarity: {product.Rarity.Value}%)");
+            AnsiConsole.MarkupLine($"[bold]{vendor.Name}[/] bietet folgende Produkte an:");
+            foreach (var product in products)
+            {
+                AnsiConsole.MarkupLine($"- {product.Name} ({product.Type}, Rarity: {product.Rarity.Value}%)");
+            }
+        }
+
+        public void ShowOffer(IOffer offer, IVendor vendor, ICustomer customer)
+        {
+            string who = offer.OfferedBy == PersonType.Customer ? customer.Name : vendor.Name;
+            AnsiConsole.MarkupLine($"[yellow]{who}[/] bietet [green]{offer.Price}[/] für {offer.Product.Name} an. (Status: {offer.Status})");
         }
     }
-
-    public void ShowOffer(IOffer offer, IVendor vendor, ICustomer customer)
-    {
-        string who = offer.OfferedBy == PersonType.Customer ? customer.Name : vendor.Name;
-        AnsiConsole.MarkupLine($"[yellow]{who}[/] bietet [green]{offer.Price}[/] für {offer.Product.Name} an. (Status: {offer.Status})");
-    }
-}
 
 }
