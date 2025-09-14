@@ -12,6 +12,9 @@ namespace haggling_ui
 
   public class HagglingUI : IUi
   {
+    private readonly List<Offer> _offers = new List<Offer>();
+    private int _lastRenderHeight = 0;
+
     public void ShowOffer(Offer offer, Vendor vendor, Customer customer)
     {
       if (offer == null)
@@ -28,9 +31,38 @@ namespace haggling_ui
         throw new ArgumentNullException("Keinen KUNDEN angegeben");
       }
 
+      _offers.Add(offer);
+
+      RenderOffers();
+    }
+
+    private void RenderOffers()
+    {
+      // Tabelle erstellen
+      var table = new Table();
+      table.Border = TableBorder.Rounded;
+      table.AddColumn("Status");
+      table.AddColumn("Produkt");
+      table.AddColumn("Bieter");
+      table.AddColumn("Preis");
 
 
-      throw new NotImplementedException();
+      foreach (var o in _offers)
+      {
+        table.AddRow(o.Product.Name, $"{o.Price:0.00} €");
+      }
+
+      // Wenn wir vorher eine Tabelle gezeichnet haben, Cursor nach oben bewegen
+      if (_lastRenderHeight > 0)
+      {
+        AnsiConsole.Cursor.MoveUp(_lastRenderHeight);
+      }
+
+      // Tabelle rendern
+      AnsiConsole.Render(table);
+
+      // Höhe der Tabelle merken, um beim nächsten Mal den Cursor wieder korrekt zu setzen
+      _lastRenderHeight = table.Rows.Count + 4; // +3 für Spaltenüberschrift & Rand
     }
 
     public void ShowProducts(IEnumerable<Product> products, Vendor vendor, Customer customer)
@@ -62,17 +94,3 @@ namespace haggling_ui
     }
   }
 }
-
-/*
-using (var live = AnsiConsole.Live(table))
-{
-    live.Start();
-
-    foreach (var offer in offers)
-    {
-        table.AddRow(offer.Product.Name, $"{offer.Price:0.00} €", offer.Vendor.Name, offer.Quantity.ToString());
-        live.Refresh(); // Tabelle wird sofort aktualisiert
-        Thread.Sleep(500); // optional: kleine Pause für Demo
-    }
-}
-*/

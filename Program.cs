@@ -23,6 +23,41 @@ namespace haggling_ui
             // Beispiel: Starte nur den MockEventGenerator für Tests
             // var generator = new Mocking.MockEventGenerator(...);
             // generator.Start();
+            var products = new List<Product>
+            {
+                new Product { Name = "Schwert", Type = ProductType.Tools, Rarity = 50 },
+                new Product { Name = "Heiltrank", Type = ProductType.Food, Rarity = 20 },
+                new Product { Name = "Rüstung", Type = ProductType.Clothing, Rarity = 70 }
+            };
+
+            // Vendor
+            var vendor = new Vendor { Name = "Marktstand" };
+
+            // Customer
+            var customer = new Customer { Name = "Held" };
+
+            // Offers
+            var offers = new List<Offer>
+            {
+                new Offer { Product = products[0], Price = 15m },
+                new Offer { Product = products[1], Price = 5m},
+                new Offer { Product = products[2], Price = 25m}
+            };
+
+            // 2️⃣ HagglingUI erstellen
+            var ui = new HagglingUI();
+
+            // 3️⃣ Produkte anzeigen
+            ui.ShowProducts(products, vendor, customer);
+
+            // 4️⃣ Offers nacheinander anzeigen
+            foreach (var offer in offers)
+            {
+                ui.ShowOffer(offer, vendor, customer);
+                Thread.Sleep(1000); // kurze Pause zwischen den Offers
+            }
+
+            Console.ReadLine();
 
             Views.PrintScreen.PrintTitleScreen();
             //AnsiConsole.Markup("[underline red]Hello[/] World!");
