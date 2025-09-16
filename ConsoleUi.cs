@@ -1,21 +1,17 @@
-﻿using haggling_ui.Views;
+﻿using haggling_interfaces;
+using haggling_ui.Views;
 using Spectre.Console;
 
 
 namespace haggling_ui
 {
-  public interface IUi
-  {
-    void ShowProducts(IEnumerable<Product> products, Vendor vendor, Customer customer);
-    void ShowOffer(Offer offer, Vendor vendor, Customer customer);
-  }
 
-  public class HagglingUI : IUi
+  public class HagglingUI
   {
-    private readonly List<Offer> _offers = new List<Offer>();
+    private readonly List<IOffer> _offers = new List<IOffer>();
     private int _lastRenderHeight = 0;
 
-    public void ShowOffer(Offer offer, Vendor vendor, Customer customer)
+    public void ShowOffer(IOffer offer, IVendor vendor, ICustomer customer)
     {
       if (offer == null)
       {
@@ -65,7 +61,7 @@ namespace haggling_ui
       _lastRenderHeight = table.Rows.Count + 4; // +3 für Spaltenüberschrift & Rand
     }
 
-    public void ShowProducts(IEnumerable<Product> products, Vendor vendor, Customer customer)
+    public void ShowProducts(IEnumerable<IProduct> products, IVendor vendor, ICustomer customer)
     {
       if (products == null)
       {
