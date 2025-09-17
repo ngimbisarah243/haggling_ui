@@ -33,20 +33,22 @@ namespace haggling_ui
 
     private void RenderOffers(ICustomer customer, IVendor vendor)
     {
+      // Tabelle erstellen
       var table = new Table();
-      table.Border = TableBorder.Double;
-      table.BorderColor(Color.HotPink);
-
-      table.AddColumn(new TableColumn("[bold black on pink1]Status[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]Produkt[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]Bieter[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]Preis[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]EmotionCustomer[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]EmotionVendor[/]"));
-
+      table.Border = TableBorder.Double; // Doppelte Ränder
+      table.BorderColor(Color.Fuchsia); // Fuchsia Rand
+      
+      // Spalten mit fuchsia Hintergrund, schwarzem Text und fett
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   Status   [/]").Centered());
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   Produkt   [/]").Centered());
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   Bieter   [/]").Centered());
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   Preis   [/]").Centered());
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   EmotionCustomer   [/]").Centered());
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   EmotionVendor   [/]").Centered());
 
       foreach (var o in _offers)
       {
+        // Status mit verschiedenen Farben
         string statusColor = o.Status switch
         {
           OfferStatus.Accepted => "[green]",
@@ -55,6 +57,7 @@ namespace haggling_ui
           _ => "[white]"
         };
 
+        // Bieter with verschiedenen Farben
         string bieterColor = o.OfferedBy switch
         {
           PersonType.Customer => "[cyan1]",
@@ -70,7 +73,6 @@ namespace haggling_ui
           _ => "[green]😊 Glücklich[/]"
         };
 
-        // Emotion für Vendor
         string vendorEmotion = vendor.Patience.Value switch
         {
           <= 10 => "[red]😡 Genervt[/]",
@@ -79,23 +81,27 @@ namespace haggling_ui
           _ => "[green]😊 Glücklich[/]"
         };
 
-
-
         table.AddRow(
-            $"{statusColor}{o.Status}[/]",
-            o.Product.Name,
-            $"{bieterColor}{o.OfferedBy}[/]",
-            $"{o.Price:0.00} €",
-            customerEmotion,
-            vendorEmotion
+          $"{statusColor}{o.Status}[/]", 
+          o.Product.Name, 
+          $"{bieterColor}{o.OfferedBy}[/]", 
+          $"{o.Price:0.00} €",
+          customerEmotion,
+          vendorEmotion
         );
       }
 
+      // Wenn wir vorher eine Tabelle gezeichnet haben, Cursor nach oben bewegen
       if (_lastRenderHeight > 0)
+      {
         AnsiConsole.Cursor.MoveUp(_lastRenderHeight);
+      }
 
+      // Tabelle rendern
       AnsiConsole.Render(table);
-      _lastRenderHeight = table.Rows.Count + 4;
+
+      // Höhe der Tabelle merken, um beim nächsten Mal den Cursor wieder korrekt zu setzen
+      _lastRenderHeight = table.Rows.Count + 4; // +3 für Spaltenüberschrift & Rand
     }
 
     public void ShowProducts(IEnumerable<IProduct> products, IVendor vendor, ICustomer customer)
@@ -113,24 +119,22 @@ namespace haggling_ui
 
       var table = new Table();
       table.Border = TableBorder.Double; // Doppelte Ränder
-      table.BorderColor(Color.HotPink); // Pinker Rand
-
-      // Spalten mit rosa Hintergrund, schwarzem Text und fett
-      table.AddColumn(new TableColumn("[bold black on pink1]Name[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]Typ[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]Seltenheit[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]Emotion[/]"));
-
-
+      table.BorderColor(Color.Fuchsia); // Fuchsia Rand
+      
+      // Spalten mit fuchsia Hintergrund, schwarzem Text und fett
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   Name   [/]").Centered());
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   Typ   [/]").Centered());
+      table.AddColumn(new TableColumn("[bold black on fuchsia]   Seltenheit   [/]").Centered());
+      
       foreach (var product in products)
       {
         if (product.Rarity > 100 || product.Rarity < 0)
           throw new ArgumentOutOfRangeException("Die Seltenheit muss zwischen 0 und 100 liegen.");
-
+        
         // Normale Zellen ohne rosa Hintergrund
         table.AddRow(
-          product.Name,
-          product.Type.ToString(),
+          product.Name, 
+          product.Type.ToString(), 
           product.Rarity.Value.ToString() + "%"
         );
       }
