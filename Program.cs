@@ -1,12 +1,4 @@
 
-// Hauptprogramm für haggling_ui
-// Einstiegspunkt für die gesamte Anwendung
-// Hier wird die Initialisierung und der Start der Komponenten gesteuert
-// Weitere Logik kann über Adapter, Listener und Views ausgelagert werden
-//
-// Autor: Team
-// Datum: 13.09.2025
-
 using System;
 using Spectre.Console;
 using haggling_interfaces;
