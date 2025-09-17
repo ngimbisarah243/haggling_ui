@@ -24,10 +24,10 @@ namespace haggling_ui
             };
 
             // Vendor
-            var vendor = new Vendor { Name = "Marktstand" };
+            var vendor = new Vendor { Name = "Marktstand", Age = 50, Patience = 50, Products = products.ToArray() };
 
             // Customer
-            var customer = new Customer { Name = "Held" };
+            var customer = new Customer { Name = "Held", Age = 30, Patience = 70 };
 
             // Offers
             var offers = new List<Offer>
@@ -87,14 +87,28 @@ namespace haggling_ui
 
         public IOffer RespondToOffer(IOffer offer, IVendor vendor)
         {
+            Patience = new Percentage(Patience.Value - 10);
+
             if (offer.Price > 50)
-            {
+            {  //Abbruch, wenn Geduld aufgebraucht
+                if (Patience.Value <= 0)
+                {
+                    return new Offer
+                    {
+                        Status = OfferStatus.Stopped,
+                        Product = offer.Product,
+                        Price = offer.Price,
+                        OfferedBy = PersonType.Customer
+                    };
+                }
+
                 return new Offer
                 {
                     Status = OfferStatus.Ongoing,
                     Product = offer.Product,
                     Price = offer.Price - 10,
                     OfferedBy = PersonType.Customer
+
                 };
             }
 
@@ -129,6 +143,20 @@ namespace haggling_ui
 
         public IOffer RespondToOffer(IOffer offer, ICustomer customer)
         {
+            Patience = new Percentage(Patience.Value - 5);
+
+            //Abbruch, wenn Geduld aufgebraucht
+            if (Patience.Value <= 0)
+            {
+                return new Offer
+                {
+                    Status = OfferStatus.Stopped,
+                    Product = offer.Product,
+                    Price = offer.Price,
+                    OfferedBy = PersonType.Vendor
+                };
+            }
+
             if (offer.Price >= 80)
             {
                 offer.Status = OfferStatus.Accepted;

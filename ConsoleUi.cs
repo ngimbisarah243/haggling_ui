@@ -28,41 +28,25 @@ namespace haggling_ui
 
       _offers.Add(offer);
 
-      RenderOffers();
+      RenderOffers(customer, vendor);
     }
 
-    private Emotion GetEmotion(IOffer o)
+    private void RenderOffers(ICustomer customer, IVendor vendor)
     {
-      if (o.Status == OfferStatus.Stopped)
-        return Emotion.Angry;
-
-      if (o.Status == OfferStatus.Accepted)
-        return Emotion.Happy;
-
-      if (o.Status == OfferStatus.Ongoing && o.Price < 10)
-        return Emotion.Annoyed;
-
-      return Emotion.Neutral;
-    }
-
-    private void RenderOffers()
-    {
-      // Tabelle erstellen
       var table = new Table();
-      table.Border = TableBorder.Double; // Doppelte Ränder
-      table.BorderColor(Color.HotPink); // Pinker Rand
+      table.Border = TableBorder.Double;
+      table.BorderColor(Color.HotPink);
 
-      // Spalten mit rosa Hintergrund, schwarzem Text und fett
       table.AddColumn(new TableColumn("[bold black on pink1]Status[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Produkt[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Bieter[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Preis[/]"));
-      table.AddColumn(new TableColumn("[bold black on pink1]Emotion[/]"));
+      table.AddColumn(new TableColumn("[bold black on pink1]EmotionCustomer[/]"));
+      table.AddColumn(new TableColumn("[bold black on pink1]EmotionVendor[/]"));
 
 
       foreach (var o in _offers)
       {
-        // Status mit verschiedenen Farben
         string statusColor = o.Status switch
         {
           OfferStatus.Accepted => "[green]",
@@ -71,7 +55,6 @@ namespace haggling_ui
           _ => "[white]"
         };
 
-        // Bieter mit verschiedenen Farben
         string bieterColor = o.OfferedBy switch
         {
           PersonType.Customer => "[cyan1]",
@@ -79,50 +62,40 @@ namespace haggling_ui
           _ => "[white]"
         };
 
-        Emotion emotion = GetEmotion(o);
-
-        string emotionColor = emotion switch
+        string customerEmotion = customer.Patience.Value switch
         {
-          Emotion.Angry => "[red]",
-          Emotion.Annoyed => "[orange1]",
-          Emotion.Excited => "[yellow]",
-          Emotion.Happy => "[green]",
-          Emotion.Neutral => "[grey]",
-          _ => "[white]"
+          <= 10 => "[red]😡 Genervt[/]",
+          <= 30 => "[orange1]😟 Unzufrieden[/]",
+          <= 70 => "[yellow]😐 Neutral[/]",
+          _ => "[green]😊 Glücklich[/]"
         };
 
-        string emotionIcon = emotion switch
+        // Emotion für Vendor
+        string vendorEmotion = vendor.Patience.Value switch
         {
-          Emotion.Angry => ">:[",
-          Emotion.Annoyed => ">:/",
-          Emotion.Excited => "🤩",
-          Emotion.Happy => "😊",
-          Emotion.Neutral => "-_-",
-          _ => "❓"
+          <= 10 => "[red]😡 Genervt[/]",
+          <= 30 => "[orange1]😟 Unzufrieden[/]",
+          <= 70 => "[yellow]😐 Neutral[/]",
+          _ => "[green]😊 Glücklich[/]"
         };
-        string emotionOutput = $"{emotionColor}{emotionIcon} {emotion}[/]";
+
 
 
         table.AddRow(
-          $"{statusColor}{o.Status}[/]",
-          o.Product.Name,
-          $"{bieterColor}{o.OfferedBy}[/]",
-          $"{o.Price:0.00} €",
-          emotionOutput
+            $"{statusColor}{o.Status}[/]",
+            o.Product.Name,
+            $"{bieterColor}{o.OfferedBy}[/]",
+            $"{o.Price:0.00} €",
+            customerEmotion,
+            vendorEmotion
         );
       }
 
-      // Wenn wir vorher eine Tabelle gezeichnet haben, Cursor nach oben bewegen
       if (_lastRenderHeight > 0)
-      {
         AnsiConsole.Cursor.MoveUp(_lastRenderHeight);
-      }
 
-      // Tabelle rendern
       AnsiConsole.Render(table);
-
-      // Höhe der Tabelle merken, um beim nächsten Mal den Cursor wieder korrekt zu setzen
-      _lastRenderHeight = table.Rows.Count + 4; // +3 für Spaltenüberschrift & Rand
+      _lastRenderHeight = table.Rows.Count + 4;
     }
 
     public void ShowProducts(IEnumerable<IProduct> products, IVendor vendor, ICustomer customer)
@@ -146,6 +119,8 @@ namespace haggling_ui
       table.AddColumn(new TableColumn("[bold black on pink1]Name[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Typ[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Seltenheit[/]"));
+      table.AddColumn(new TableColumn("[bold black on pink1]Emotion[/]"));
+
 
       foreach (var product in products)
       {
