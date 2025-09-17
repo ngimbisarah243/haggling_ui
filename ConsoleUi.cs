@@ -31,18 +31,34 @@ namespace haggling_ui
       RenderOffers();
     }
 
+    private Emotion GetEmotion(IOffer o)
+    {
+      if (o.Status == OfferStatus.Stopped)
+        return Emotion.Angry;
+
+      if (o.Status == OfferStatus.Accepted)
+        return Emotion.Happy;
+
+      if (o.Status == OfferStatus.Ongoing && o.Price < 10)
+        return Emotion.Annoyed;
+
+      return Emotion.Neutral;
+    }
+
     private void RenderOffers()
     {
       // Tabelle erstellen
       var table = new Table();
       table.Border = TableBorder.Double; // Doppelte Ränder
       table.BorderColor(Color.HotPink); // Pinker Rand
-      
+
       // Spalten mit rosa Hintergrund, schwarzem Text und fett
       table.AddColumn(new TableColumn("[bold black on pink1]Status[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Produkt[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Bieter[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Preis[/]"));
+      table.AddColumn(new TableColumn("[bold black on pink1]Emotion[/]"));
+
 
       foreach (var o in _offers)
       {
@@ -63,11 +79,36 @@ namespace haggling_ui
           _ => "[white]"
         };
 
+        Emotion emotion = GetEmotion(o);
+
+        string emotionColor = emotion switch
+        {
+          Emotion.Angry => "[red]",
+          Emotion.Annoyed => "[orange1]",
+          Emotion.Excited => "[yellow]",
+          Emotion.Happy => "[green]",
+          Emotion.Neutral => "[grey]",
+          _ => "[white]"
+        };
+
+        string emotionIcon = emotion switch
+        {
+          Emotion.Angry => ">:[",
+          Emotion.Annoyed => ">:/",
+          Emotion.Excited => "🤩",
+          Emotion.Happy => "😊",
+          Emotion.Neutral => "-_-",
+          _ => "❓"
+        };
+        string emotionOutput = $"{emotionColor}{emotionIcon} {emotion}[/]";
+
+
         table.AddRow(
-          $"{statusColor}{o.Status}[/]", 
-          o.Product.Name, 
-          $"{bieterColor}{o.OfferedBy}[/]", 
-          $"{o.Price:0.00} €"
+          $"{statusColor}{o.Status}[/]",
+          o.Product.Name,
+          $"{bieterColor}{o.OfferedBy}[/]",
+          $"{o.Price:0.00} €",
+          emotionOutput
         );
       }
 
@@ -100,21 +141,21 @@ namespace haggling_ui
       var table = new Table();
       table.Border = TableBorder.Double; // Doppelte Ränder
       table.BorderColor(Color.HotPink); // Pinker Rand
-      
+
       // Spalten mit rosa Hintergrund, schwarzem Text und fett
       table.AddColumn(new TableColumn("[bold black on pink1]Name[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Typ[/]"));
       table.AddColumn(new TableColumn("[bold black on pink1]Seltenheit[/]"));
-      
+
       foreach (var product in products)
       {
         if (product.Rarity > 100 || product.Rarity < 0)
           throw new ArgumentOutOfRangeException("Die Seltenheit muss zwischen 0 und 100 liegen.");
-        
+
         // Normale Zellen ohne rosa Hintergrund
         table.AddRow(
-          product.Name, 
-          product.Type.ToString(), 
+          product.Name,
+          product.Type.ToString(),
           product.Rarity.Value.ToString() + "%"
         );
       }

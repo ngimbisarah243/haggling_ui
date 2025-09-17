@@ -10,6 +10,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\haggling\haggling_interfaces\haggling_interfaces.csproj" />
+        <ProjectReference Include="..\Ohne Titel\haggling_interfaces\haggling_interfaces.csproj" />
     </ItemGroup>
 
     <ItemGroup>
