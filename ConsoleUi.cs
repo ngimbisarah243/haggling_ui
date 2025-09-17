@@ -85,7 +85,7 @@ namespace haggling_ui
           $"{statusColor}{o.Status}[/]", 
           o.Product.Name, 
           $"{bieterColor}{o.OfferedBy}[/]", 
-          $"{o.Price:0.00} €",
+          $"{o.Price,8:0.00} €",
           customerEmotion,
           vendorEmotion
         );
